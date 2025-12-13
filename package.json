@@ -9,7 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.12",
+    "lucide-react": "^0.560.0",
     "next": "16.0.8",
+    "puppeteer": "^24.33.0",
     "react": "19.2.1",
     "react-dom": "19.2.1"
   },
