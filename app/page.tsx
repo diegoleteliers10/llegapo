@@ -394,9 +394,9 @@ export default function Home() {
                 <div className="md:col-span-4 flex flex-col gap-2">
                   <label
                     htmlFor="busCode"
-                    className="text-white/80 text-sm font-medium ml-1 flex items-center gap-2"
+                    className="text-blue-400 text-sm font-medium ml-1 flex items-center gap-2"
                   >
-                    <Bus className="w-[18px] h-[18px] text-primary" />
+                    <Bus className="w-[18px] h-[18px] text-blue-400" />
                     Recorrido (Opcional)
                   </label>
                   <div className="relative">
