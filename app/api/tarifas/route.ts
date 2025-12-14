@@ -13,6 +13,7 @@ export interface Tarifa {
   horarios: { texto: string; rangos: Array<{ inicio: string; fin: string }> };
   precios: { metro?: number; bus?: number; metrotren?: number; total: number };
   combinaciones: TarifaCombinacion[];
+  restricciones?: string;
 }
 
 export async function GET() {
@@ -33,7 +34,7 @@ export async function GET() {
     });
 
     const page = await browser.newPage();
-    
+
     // User-agent estándar Chrome
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -100,6 +101,7 @@ export async function GET() {
         // Extraer descripción y horarios del texto antes de la tabla
         let descripcion = "";
         let horariosTexto = "";
+        let restricciones = "";
         let elementoTexto: Element | null =
           titular.nextElementSibling as Element | null;
 
@@ -116,6 +118,8 @@ export async function GET() {
             ) {
               if (texto.includes("Iniciando") || texto.includes("Horario")) {
                 horariosTexto = texto;
+              } else if (texto.includes("restricción") || texto.includes("válido") || texto.includes("aplicable")) {
+                restricciones = texto;
               } else if (descripcion === "") {
                 descripcion = texto;
               }
@@ -139,7 +143,7 @@ export async function GET() {
 
               // Extraer precio numérico
               const precioMatch = precioTexto.match(/\$?(\d+)/);
-              const precio = precioMatch ? parseInt(precioMatch[1]) : 0;
+              const precio = precioMatch ? parseInt(precioMatch[1], 10) : 0;
 
               if (combinacionTexto && precio > 0) {
                 combinaciones.push({
@@ -166,10 +170,10 @@ export async function GET() {
         const precioBusMatch = descripcion.match(/bus.*?\$(\d+)/i);
         const precioMetrotrenMatch = descripcion.match(/Tren.*?\$(\d+)/i);
 
-        if (precioMetroMatch) precios.metro = parseInt(precioMetroMatch[1]);
-        if (precioBusMatch) precios.bus = parseInt(precioBusMatch[1]);
+        if (precioMetroMatch) precios.metro = parseInt(precioMetroMatch[1], 10);
+        if (precioBusMatch) precios.bus = parseInt(precioBusMatch[1], 10);
         if (precioMetrotrenMatch)
-          precios.metrotren = parseInt(precioMetrotrenMatch[1]);
+          precios.metrotren = parseInt(precioMetrotrenMatch[1], 10);
 
         // El precio total es el máximo de las combinaciones o el precio base
         if (combinaciones.length > 0) {
@@ -193,14 +197,20 @@ export async function GET() {
           });
         }
 
-        results.push({
+        const tarifaResult: Tarifa = {
           tipo,
           nombre: nombreSeccion,
           descripcion: descripcion || nombreSeccion,
           horarios,
           precios,
           combinaciones,
-        });
+        };
+
+        if (restricciones) {
+          tarifaResult.restricciones = restricciones;
+        }
+
+        results.push(tarifaResult);
       });
 
       return results;
