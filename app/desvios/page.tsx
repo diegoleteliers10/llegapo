@@ -86,6 +86,13 @@ export default function DesviosPage() {
                 Desvíos
               </Link>
               <Link
+                href="/estado-metro"
+                className="text-white/60 hover:text-white font-medium transition-colors text-sm"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Estado Metro
+              </Link>
+              <Link
                 href="/tarifas"
                 className="text-white/60 hover:text-white font-medium transition-colors text-sm py-2"
                 onClick={() => setMobileMenuOpen(false)}
