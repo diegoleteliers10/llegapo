@@ -1,0 +1,20 @@
+{
+  "functions": {
+    "app/api/metro-status/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/deviations/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}

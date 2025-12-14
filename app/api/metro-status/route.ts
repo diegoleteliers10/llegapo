@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer";
+import chromium from "@sparticuz/chromium";
 
 export interface MetroLineStatus {
   line: string;
@@ -13,18 +14,27 @@ export interface MetroLineStatus {
 export async function GET() {
   let browser;
   try {
-    // Inicializar Puppeteer
+    // Inicializar Puppeteer con configuración optimizada para Vercel
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-      ],
+      args:
+        process.env.NODE_ENV === "production"
+          ? chromium.args
+          : [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-accelerated-2d-canvas",
+              "--no-first-run",
+              "--no-zygote",
+              "--disable-gpu",
+            ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath:
+        process.env.NODE_ENV === "production"
+          ? await chromium.executablePath()
+          : undefined,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
     });
 
     const page = await browser.newPage();
@@ -34,21 +44,21 @@ export async function GET() {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     );
 
-    // Navegar a la página
+    // Navegar a la página con timeout reducido para Vercel
     await page.goto("https://www.red.cl/estado-del-servicio/", {
-      waitUntil: "domcontentloaded", // Más rápido que networkidle2
-      timeout: 60000, // Aumentado a 60 segundos
+      waitUntil: "domcontentloaded",
+      timeout: 25000, // Reducido para evitar timeout de Vercel (30s max)
     });
 
     // Esperar a que la tabla se cargue - intentar varios selectores
     await page
-      .waitForSelector("table.table, table, tbody tr", { timeout: 15000 })
+      .waitForSelector("table.table, table, tbody tr", { timeout: 10000 })
       .catch(() => {
         // Silenciar logs de error
       });
 
-    // Esperar un poco más para que el contenido dinámico se cargue
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Reducir tiempo de espera para Vercel
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Extraer el estado de las líneas de metro usando selectores CSS
     const metroStatus = await page.evaluate(() => {
