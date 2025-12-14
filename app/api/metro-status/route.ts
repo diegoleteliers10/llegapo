@@ -29,7 +29,20 @@ export async function GET() {
     if (process.env.NODE_ENV === "production") {
       // Production: Use puppeteer-core with @sparticuz/chromium for serverless
       browser = await puppeteer.launch({
-        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          ...chromium.args,
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--disable-features=VizDisplayCompositor",
+          "--single-process",
+          "--no-first-run",
+          "--no-zygote",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+        ],
         defaultViewport: viewport,
         executablePath: await chromium.executablePath(),
         headless: "shell",

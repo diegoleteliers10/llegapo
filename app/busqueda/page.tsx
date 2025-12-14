@@ -108,8 +108,8 @@ function BusquedaPageInner() {
     <div className="min-h-screen flex flex-col map-bg">
       {/* Navbar */}
       <header className="w-full glass-header sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between mr-10">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4 mr-10">
             <Link href="/">
               <Image
                 src="/iconLlega.png"
