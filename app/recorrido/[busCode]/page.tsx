@@ -23,7 +23,7 @@ import {
   Layer,
 } from "react-map-gl/maplibre";
 import type { FeatureCollection, LineString } from "geojson";
-import "maplibre-gl/dist/maplibre-gl.css";
+
 import type { RouteData } from "@/lib/hooks/useRoute";
 
 function RouteMapAndStops({ routeData }: { routeData: RouteData }) {
