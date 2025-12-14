@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import puppeteerDev from "puppeteer";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer"; // puppeteer COMPLETO (incluye Chrome)
 
 export interface Deviation {
   date: string;
@@ -10,82 +8,34 @@ export interface Deviation {
   link: string;
 }
 
-/**
- * Scraping de desvíos desde Red Movilidad usando Puppeteer
- */
 export async function GET() {
   let browser;
   try {
-    // Inicializar Puppeteer con configuración optimizada para Vercel
-    const viewport = {
-      deviceScaleFactor: 1,
-      hasTouch: false,
-      height: 1080,
-      isLandscape: true,
-      isMobile: false,
-      width: 1920,
-    };
-
-    // Use different puppeteer configurations for development vs production
-    if (process.env.NODE_ENV === "production") {
-      // Production: Use puppeteer-core with @sparticuz/chromium for serverless
-      browser = await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-features=VizDisplayCompositor",
-          "--single-process",
-          "--no-first-run",
-          "--no-zygote",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding",
-        ],
-        defaultViewport: viewport,
-        executablePath: await chromium.executablePath(),
-        headless: "shell",
-      });
-    } else {
-      // Development: Use regular puppeteer with local Chrome
-      browser = await puppeteerDev.launch({
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--no-first-run",
-          "--no-zygote",
-          "--disable-gpu",
-        ],
-        defaultViewport: viewport,
-        headless: true,
-      });
-    }
-
-    const page = await browser.newPage();
-
-    // Configurar User-Agent
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    );
-
-    // Navegar a la página con timeout reducido para Vercel
-    await page.goto("https://www.red.cl/estado-del-servicio/desvios/", {
-      waitUntil: "domcontentloaded",
-      timeout: 25000, // Reducido para evitar timeout de Vercel (30s max)
+    // puppeteer COMPLETO encuentra Chrome AUTOMÁTICAMENTE
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
     });
 
-    // Esperar a que el contenedor con los desvíos se cargue con timeout reducido
-    await page
-      .waitForSelector("div.row.noticias, a.noticia", { timeout: 8000 })
-      .catch(() => {
-        // Si no encuentra el selector, continuar de todas formas
-      });
+    // Resto del código IDENTICO...
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
 
-    // Extraer los desvíos usando selectores CSS
+    await page.goto("https://www.red.cl/estado-del-servicio/desvios/", {
+      waitUntil: "networkidle0",
+      timeout: 20000,
+    });
+
     const deviations = await page.evaluate(() => {
       const results: Array<{
         date: string;
@@ -146,30 +96,12 @@ export async function GET() {
     });
 
     await browser.close();
-
-    return NextResponse.json({
-      success: true,
-      data: deviations,
-      timestamp: Date.now(),
-      debug: {
-        found: deviations.length,
-        processed: deviations.length,
-      },
-    });
+    return NextResponse.json({ success: true, data: deviations });
   } catch (error) {
-    console.error("Error al obtener desvíos:", error);
-
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Error desconocido",
-        data: [],
-      },
-      { status: 500 },
-    );
+    if (browser) await browser.close();
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, { status: 500 });
   }
 }

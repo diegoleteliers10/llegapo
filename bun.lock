@@ -5,7 +5,7 @@
       "name": "llegapo",
       "dependencies": {
         "@radix-ui/react-popover": "^1.1.15",
-        "@sparticuz/chromium": "^131.0.0",
+        "@sparticuz/chromium": "^126.0.0",
         "@tailwindcss/postcss": "^4.1.18",
         "@tanstack/react-query": "^5.90.12",
         "class-variance-authority": "^0.7.1",
@@ -15,7 +15,6 @@
         "maplibre-gl": "^5.14.0",
         "next": "16.0.8",
         "puppeteer": "^24.33.0",
-        "puppeteer-core": "^24.33.0",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
         "react-map-gl": "^8.1.0",
@@ -269,7 +268,7 @@
 
     "@rtsao/scc": ["@rtsao/scc@1.1.0", "", {}, "sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g=="],
 
-    "@sparticuz/chromium": ["@sparticuz/chromium@131.0.1", "", { "dependencies": { "follow-redirects": "^1.15.9", "tar-fs": "^3.0.6" } }, "sha512-VfmHkQmb/Px0zjwdSQwjRMwFw63Qfj+g4Giumz4jiAGEpXHgIZk6xEwlUz6yiUHVDveK2TEgMR2MR6I3okOE7w=="],
+    "@sparticuz/chromium": ["@sparticuz/chromium@126.0.0", "", { "dependencies": { "follow-redirects": "^1.15.6", "tar-fs": "^3.0.6" } }, "sha512-qqGQmZQj3y0/V2osKswRHbzK4Qe80YHSDnpt6ac51hsY1bMDinMS9Q+eEmcL+re2MEhYN+ykoV9BY8Dyw1Lyjg=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.15", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g=="],
 

@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import puppeteerDev from "puppeteer";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer"; // ← CAMBIADO a puppeteer COMPLETO
 
 export interface TarifaCombinacion {
   descripcion: string;
@@ -9,114 +7,43 @@ export interface TarifaCombinacion {
 }
 
 export interface Tarifa {
-  tipo:
-    | "baja"
-    | "valle"
-    | "punta"
-    | "estudiante"
-    | "adulto-mayor"
-    | "adulto-mayor-metro";
+  tipo: "baja" | "valle" | "punta" | "estudiante" | "adulto-mayor" | "adulto-mayor-metro";
   nombre: string;
   descripcion: string;
-  horarios: {
-    texto: string;
-    rangos: Array<{
-      inicio: string;
-      fin: string;
-    }>;
-  };
-  precios: {
-    metro?: number;
-    bus?: number;
-    metrotren?: number;
-    total: number;
-  };
+  horarios: { texto: string; rangos: Array<{ inicio: string; fin: string }> };
+  precios: { metro?: number; bus?: number; metrotren?: number; total: number };
   combinaciones: TarifaCombinacion[];
-  restricciones?: string;
 }
 
-/**
- * Scraping de tarifas desde Red Movilidad usando Puppeteer
- */
 export async function GET() {
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+  let browser;
   try {
-    // Configuración del viewport optimizada para Vercel
-    const viewport = {
-      deviceScaleFactor: 1,
-      hasTouch: false,
-      height: 1080,
-      isLandscape: true,
-      isMobile: false,
-      width: 1920,
-    };
-
-    // Use different puppeteer configurations for development vs production
-    if (process.env.NODE_ENV === "production") {
-      // Production: Use puppeteer-core with @sparticuz/chromium for serverless
-      browser = await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-features=VizDisplayCompositor",
-          "--single-process",
-          "--no-first-run",
-          "--no-zygote",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding",
-        ],
-        defaultViewport: viewport,
-        executablePath: await chromium.executablePath(),
-        headless: "shell",
-      });
-    } else {
-      // Development: Use regular puppeteer with local Chrome
-      browser = await puppeteerDev.launch({
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--no-first-run",
-          "--no-zygote",
-          "--disable-gpu",
-        ],
-        defaultViewport: viewport,
-        headless: true,
-      });
-    }
+    // puppeteer COMPLETO detecta Chrome AUTOMÁTICAMENTE
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
+    });
 
     const page = await browser.newPage();
-
-    // Configurar User-Agent
+    
+    // User-agent estándar Chrome
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
 
-    // Navegar a la página con timeout reducido para Vercel
-    await page.goto(
-      "https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/",
-      {
-        waitUntil: "domcontentloaded",
-        timeout: 25000, // Reducido para evitar timeout de Vercel (30s max)
-      },
-    );
+    await page.goto("https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/", {
+      waitUntil: "networkidle0",
+      timeout: 20000,
+    });
 
-    // Esperar a que las tablas se carguen con timeout reducido
-    await page
-      .waitForSelector("table.table, h2.titular", { timeout: 8000 })
-      .catch(() => {
-        // Continuar aunque no encuentre los selectores
-      });
-
-    // Reducir tiempo de espera para Vercel
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Extraer las tarifas
     const tarifas = await page.evaluate(() => {
       const results: Tarifa[] = [];
 
@@ -295,27 +222,10 @@ export async function GET() {
       timestamp: Date.now(),
     });
   } catch (error) {
-    console.error("Error al obtener tarifas:", error);
-
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Error desconocido",
-        data: {
-          tarifas: [],
-          informacionGeneral: {
-            sistemaIntegrado: true,
-            periodoIntegracion: 120,
-            maxTransbordos: 2,
-            formasPago: [],
-          },
-        },
-      },
-      { status: 500 },
-    );
+    if (browser) await browser.close();
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    }, { status: 500 });
   }
 }
