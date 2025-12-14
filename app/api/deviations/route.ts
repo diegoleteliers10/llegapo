@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer"; // puppeteer COMPLETO (incluye Chrome)
+import { chromium } from "playwright";
 
 export interface Deviation {
   date: string;
@@ -10,29 +10,32 @@ export interface Deviation {
 
 export async function GET() {
   let browser;
+  let context;
   try {
-    // puppeteer COMPLETO encuentra Chrome AUTOMÁTICAMENTE
-    browser = await puppeteer.launch({
+    // Launch Playwright Chromium browser
+    browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
       ],
     });
 
-    // Resto del código IDENTICO...
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    );
+    // Create browser context with userAgent
+    context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    });
+
+    const page = await context.newPage();
 
     await page.goto("https://www.red.cl/estado-del-servicio/desvios/", {
-      waitUntil: "networkidle0",
+      waitUntil: "networkidle",
       timeout: 20000,
     });
 
@@ -95,13 +98,18 @@ export async function GET() {
       return results;
     });
 
+    await context.close();
     await browser.close();
     return NextResponse.json({ success: true, data: deviations });
   } catch (error) {
+    if (context) await context.close();
     if (browser) await browser.close();
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }

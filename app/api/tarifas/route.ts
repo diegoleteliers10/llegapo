@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer"; // ← CAMBIADO a puppeteer COMPLETO
+import { chromium } from "playwright";
 
 export interface TarifaCombinacion {
   descripcion: string;
@@ -7,7 +7,13 @@ export interface TarifaCombinacion {
 }
 
 export interface Tarifa {
-  tipo: "baja" | "valle" | "punta" | "estudiante" | "adulto-mayor" | "adulto-mayor-metro";
+  tipo:
+    | "baja"
+    | "valle"
+    | "punta"
+    | "estudiante"
+    | "adulto-mayor"
+    | "adulto-mayor-metro";
   nombre: string;
   descripcion: string;
   horarios: { texto: string; rangos: Array<{ inicio: string; fin: string }> };
@@ -18,32 +24,37 @@ export interface Tarifa {
 
 export async function GET() {
   let browser;
+  let context;
   try {
-    // puppeteer COMPLETO detecta Chrome AUTOMÁTICAMENTE
-    browser = await puppeteer.launch({
+    // Launch Playwright Chromium browser
+    browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
       ],
     });
 
-    const page = await browser.newPage();
-
-    // User-agent estándar Chrome
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    );
-
-    await page.goto("https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/", {
-      waitUntil: "networkidle0",
-      timeout: 20000,
+    // Create browser context with userAgent
+    context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     });
+
+    const page = await context.newPage();
+
+    await page.goto(
+      "https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/",
+      {
+        waitUntil: "networkidle",
+        timeout: 20000,
+      },
+    );
 
     const tarifas = await page.evaluate(() => {
       const results: Tarifa[] = [];
@@ -118,7 +129,11 @@ export async function GET() {
             ) {
               if (texto.includes("Iniciando") || texto.includes("Horario")) {
                 horariosTexto = texto;
-              } else if (texto.includes("restricción") || texto.includes("válido") || texto.includes("aplicable")) {
+              } else if (
+                texto.includes("restricción") ||
+                texto.includes("válido") ||
+                texto.includes("aplicable")
+              ) {
                 restricciones = texto;
               } else if (descripcion === "") {
                 descripcion = texto;
@@ -216,6 +231,7 @@ export async function GET() {
       return results;
     });
 
+    await context.close();
     await browser.close();
 
     return NextResponse.json({
@@ -232,10 +248,14 @@ export async function GET() {
       timestamp: Date.now(),
     });
   } catch (error) {
+    if (context) await context.close();
     if (browser) await browser.close();
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }
