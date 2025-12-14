@@ -1,5 +1,5 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright-core";
-import chromiumPath from "@sparticuz/chromium";
+import chromiumPath from "@sparticuz/chromium-min";
 
 // Environment-aware configuration
 const getConfig = () => ({
