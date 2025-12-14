@@ -25,7 +25,7 @@ export function useDeviations() {
     staleTime: 60 * 60 * 1000, // 1 hora
     gcTime: 24 * 60 * 60 * 1000, // Mantener en caché por 24 horas
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Cambiado a true para mostrar estado de carga al montar
     retry: 2,
   });
 }

@@ -1,6 +1,7 @@
 // Configuración de la API
 // TODO: Reemplazar con la URL real de tu API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://llegapo-server.vercel.app";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://llegapo-server.vercel.app";
 
 // Tipos para la API
 export interface ArrivalData {
@@ -45,7 +46,7 @@ export interface BusArrivalsResponse {
  * @returns Promise con los datos de llegadas
  */
 export async function getStopArrivals(
-  stopId: string
+  stopId: string,
 ): Promise<StopArrivalsResponse> {
   const response = await fetch(`${API_BASE_URL}/v1/stops/${stopId}/arrivals`, {
     next: { revalidate: 30 }, // Revalidar cada 30 segundos
@@ -72,13 +73,13 @@ export async function getStopArrivals(
  */
 export async function getBusArrivals(
   stopId: string,
-  busId: string
+  busId: string,
 ): Promise<BusArrivalsResponse> {
   const response = await fetch(
     `${API_BASE_URL}/v1/stops/${stopId}/arrivals/busId?busId=${busId}`,
     {
       next: { revalidate: 30 }, // Revalidar cada 30 segundos
-    }
+    },
   );
 
   if (!response.ok) {
@@ -87,10 +88,7 @@ export async function getBusArrivals(
 
   const data: BusArrivalsResponse = await response.json();
 
-  if (!data.success) {
-    throw new Error("No se pudieron obtener los datos");
-  }
-
+  // No lanzar error cuando success es false; devolver los datos para que la UI maneje el estado vacío o el mensaje
   return data;
 }
 

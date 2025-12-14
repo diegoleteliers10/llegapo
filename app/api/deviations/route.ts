@@ -9,14 +9,6 @@ export interface Deviation {
 }
 
 /**
- * Crea un excerpt del texto (máximo 100 caracteres)
- */
-function createExcerpt(text: string, maxLength: number = 100): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trim() + "...";
-}
-
-/**
  * Scraping de desvíos desde Red Movilidad usando Puppeteer
  */
 export async function GET() {
@@ -37,22 +29,24 @@ export async function GET() {
     });
 
     const page = await browser.newPage();
-    
+
     // Configurar User-Agent
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     );
 
     // Navegar a la página
     await page.goto("https://www.red.cl/estado-del-servicio/desvios/", {
-      waitUntil: "networkidle2",
-      timeout: 30000,
+      waitUntil: "domcontentloaded", // Más rápido que networkidle2
+      timeout: 60000, // Aumentado a 60 segundos
     });
 
     // Esperar a que el contenedor con los desvíos se cargue
-    await page.waitForSelector('div.row.noticias, a.noticia', { timeout: 10000 }).catch(() => {
-      // Si no encuentra el selector, continuar de todas formas
-    });
+    await page
+      .waitForSelector("div.row.noticias, a.noticia", { timeout: 10000 })
+      .catch(() => {
+        // Si no encuentra el selector, continuar de todas formas
+      });
 
     // Extraer los desvíos usando selectores CSS
     const deviations = await page.evaluate(() => {
@@ -63,15 +57,15 @@ export async function GET() {
       }> = [];
 
       // Buscar el contenedor div.row.noticias
-      const container = document.querySelector('div.row.noticias');
+      const container = document.querySelector("div.row.noticias");
       if (!container) {
         // Si no encontramos el contenedor, buscar directamente los <a class="noticia">
-        const allLinks = document.querySelectorAll('a.noticia');
+        const allLinks = document.querySelectorAll("a.noticia");
         allLinks.forEach((linkElement) => {
           const a = linkElement as HTMLAnchorElement;
           const title = a.getAttribute("title") || "";
           const href = a.getAttribute("href") || "";
-          
+
           // Buscar la fecha en el span dentro del <a>
           const span = a.querySelector("span");
           const date = span ? span.textContent?.trim() || "" : "";
@@ -80,7 +74,9 @@ export async function GET() {
             results.push({
               date,
               title: title.replace(/^Leer artículo:\s*/i, "").trim(),
-              link: href.startsWith("http") ? href : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
+              link: href.startsWith("http")
+                ? href
+                : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
             });
           }
         });
@@ -92,7 +88,7 @@ export async function GET() {
           const a = linkElement as HTMLAnchorElement;
           const title = a.getAttribute("title") || "";
           const href = a.getAttribute("href") || "";
-          
+
           // Buscar la fecha en el span dentro del <a>
           const span = a.querySelector("span");
           const date = span ? span.textContent?.trim() || "" : "";
@@ -101,7 +97,9 @@ export async function GET() {
             results.push({
               date,
               title: title.replace(/^Leer artículo:\s*/i, "").trim(),
-              link: href.startsWith("http") ? href : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
+              link: href.startsWith("http")
+                ? href
+                : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
             });
           }
         });
@@ -123,7 +121,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error al obtener desvíos:", error);
-    
+
     if (browser) {
       await browser.close().catch(() => {});
     }
@@ -134,7 +132,7 @@ export async function GET() {
         error: error instanceof Error ? error.message : "Error desconocido",
         data: [],
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

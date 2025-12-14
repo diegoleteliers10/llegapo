@@ -1,11 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, CheckCircle, AlertTriangle, Loader2, Home } from "lucide-react";
+import Image from "next/image";
+import {
+  ChevronRight,
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  Home,
+  Menu,
+} from "lucide-react";
 import { useMetroStatus } from "@/lib/hooks/useMetroStatus";
 
 export default function EstadoMetroPage() {
   const metroStatusQuery = useMetroStatus();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col map-bg">
@@ -14,12 +24,17 @@ export default function EstadoMetroPage() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <h1 className="text-xl font-bold tracking-tight text-white">
-                Llega Po&apos;
-              </h1>
+              <Image
+                src="/iconLlega.png"
+                alt="Llega Po'"
+                width={240}
+                height={80}
+                className="h-16 w-auto"
+                priority
+              />
             </Link>
           </div>
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-8 ml-auto mr-10">
             <Link
               href="/"
               className="text-white/80 hover:text-white font-medium transition-colors text-sm"
@@ -34,36 +49,77 @@ export default function EstadoMetroPage() {
             </Link>
             <Link
               href="/estado-metro"
-              className="text-white/80 hover:text-white font-medium transition-colors text-sm"
+              className="text-white hover:text-white font-medium transition-colors text-sm"
             >
               Estado Metro
             </Link>
             <Link
-              href="#"
+              href="/tarifas"
               className="text-white/60 hover:text-white font-medium transition-colors text-sm"
             >
               Tarifas
             </Link>
           </nav>
           <div className="flex items-center gap-4">
-            <button className="glass-button h-10 px-6 rounded-lg text-sm font-bold text-white shadow-lg">
-              Acceder
+            {/* Menú hamburguesa para mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
             </button>
           </div>
         </div>
+
+        {/* Menú móvil desplegable */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/10 bg-black/80 backdrop-blur-lg">
+            <nav className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-4">
+              <Link
+                href="/"
+                className="text-white/80 hover:text-white font-medium transition-colors text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Inicio
+              </Link>
+              <Link
+                href="/desvios"
+                className="text-white/60 hover:text-white font-medium transition-colors text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Desvíos
+              </Link>
+              <Link
+                href="/estado-metro"
+                className="text-white/80 hover:text-white font-medium transition-colors text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Estado Metro
+              </Link>
+              <Link
+                href="/tarifas"
+                className="text-white/60 hover:text-white font-medium transition-colors text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Tarifas
+              </Link>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
       <main className="grow flex flex-col px-4 py-12 pb-32 sm:pb-40 relative overflow-visible">
         <div className="w-full max-w-4xl mx-auto relative z-10">
           {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-white/60 text-sm mb-8">
-            <Link href="/" className="hover:text-white transition-colors flex items-center gap-1">
-              <Home className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-white/40 text-xs font-mono uppercase tracking-widest mb-8">
+            <Link href="/" className="hover:text-white transition-colors">
               Inicio
             </Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-white">Estado del Metro</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-primary">Estado del Metro</span>
           </div>
 
           {/* Title */}
@@ -72,7 +128,8 @@ export default function EstadoMetroPage() {
               Estado del Metro
             </h1>
             <p className="text-white/60 text-lg font-light">
-              Información en tiempo real del estado de todas las líneas del metro
+              Información en tiempo real del estado de todas las líneas del
+              metro
             </p>
           </div>
 
@@ -88,7 +145,9 @@ export default function EstadoMetroPage() {
           {metroStatusQuery.error && (
             <div className="glass-panel rounded-2xl p-8 md:p-12 text-center">
               <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <p className="text-white font-bold mb-2">Error al cargar el estado</p>
+              <p className="text-white font-bold mb-2">
+                Error al cargar el estado
+              </p>
               <p className="text-white/60">{metroStatusQuery.error.message}</p>
             </div>
           )}
@@ -98,14 +157,16 @@ export default function EstadoMetroPage() {
             <div className="space-y-4">
               {metroStatusQuery.data.data.length === 0 ? (
                 <div className="glass-panel rounded-2xl p-8 md:p-12 text-center">
-                  <p className="text-white/60">No se encontró información del metro</p>
+                  <p className="text-white/60">
+                    No se encontró información del metro
+                  </p>
                 </div>
               ) : (
                 metroStatusQuery.data.data.map((line, index) => {
-                  const hasAlterations = 
-                    !line.status.toLowerCase().includes("sin alteraciones") && 
+                  const hasAlterations =
+                    !line.status.toLowerCase().includes("sin alteraciones") &&
                     line.status.toLowerCase() !== "sin alteraciones";
-                  
+
                   // Colores asociados a cada línea de metro
                   const getLineColor = (lineNumber: string) => {
                     const normalized = lineNumber.toLowerCase().trim();
@@ -128,9 +189,9 @@ export default function EstadoMetroPage() {
                         return "bg-gray-500"; // Color por defecto
                     }
                   };
-                  
+
                   const lineColor = getLineColor(line.line);
-                  
+
                   return (
                     <div
                       key={`${line.line}-${index}`}
@@ -138,7 +199,9 @@ export default function EstadoMetroPage() {
                     >
                       <div className="flex items-start gap-4">
                         {/* Icon con color de línea */}
-                        <div className={`shrink-0 w-12 h-12 rounded-lg ${lineColor} flex items-center justify-center`}>
+                        <div
+                          className={`shrink-0 w-12 h-12 rounded-lg ${lineColor} flex items-center justify-center`}
+                        >
                           <span className="text-white font-bold text-lg">
                             {line.line.toUpperCase()}
                           </span>
@@ -160,11 +223,13 @@ export default function EstadoMetroPage() {
                               {line.status}
                             </span>
                           </div>
-                          
+
                           {/* Detalle/Observaciones */}
                           {line.details && line.details.trim() !== "" ? (
                             <div className="mt-3 pt-3 border-t border-white/10">
-                              <p className="text-white/80 text-sm font-medium mb-1">Detalle:</p>
+                              <p className="text-white/80 text-sm font-medium mb-1">
+                                Detalle:
+                              </p>
                               <p className="text-white/60 text-sm">
                                 {line.details}
                               </p>
@@ -182,7 +247,6 @@ export default function EstadoMetroPage() {
               )}
             </div>
           )}
-
         </div>
       </main>
     </div>

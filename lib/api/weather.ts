@@ -3,7 +3,12 @@
 const SANTIAGO_LAT = -33.4489;
 const SANTIAGO_LON = -70.6693;
 
-export type WeatherIconType = "sun" | "cloud" | "cloud-rain" | "snowflake" | "wind";
+export type WeatherIconType =
+  | "sun"
+  | "cloud"
+  | "cloud-rain"
+  | "snowflake"
+  | "wind";
 
 export interface WeatherData {
   temperature: number;
@@ -18,7 +23,7 @@ export interface WeatherData {
 export async function getWeather(): Promise<WeatherData> {
   try {
     const response = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${SANTIAGO_LAT}&longitude=${SANTIAGO_LON}&current=temperature_2m,weather_code&timezone=America/Santiago`
+      `https://api.open-meteo.com/v1/forecast?latitude=${SANTIAGO_LAT}&longitude=${SANTIAGO_LON}&current=temperature_2m,weather_code&timezone=America/Santiago`,
     );
 
     if (!response.ok) {
@@ -30,8 +35,8 @@ export async function getWeather(): Promise<WeatherData> {
     const weatherCode = data.current.weather_code;
 
     // Generar mensaje según la temperatura
-    const { message, icon } = getWeatherMessage(temperature);
-    
+    const { message } = getWeatherMessage(temperature);
+
     // Determinar icono según el código del clima
     const weatherIcon = getWeatherIcon(weatherCode);
 
@@ -87,17 +92,23 @@ function getWeatherIcon(weatherCode: number): WeatherIconType {
   ) {
     return "cloud-rain";
   }
-  
+
   // Códigos de nieve (71-77, 85-86)
-  if ((weatherCode >= 71 && weatherCode <= 77) || (weatherCode >= 85 && weatherCode <= 86)) {
+  if (
+    (weatherCode >= 71 && weatherCode <= 77) ||
+    (weatherCode >= 85 && weatherCode <= 86)
+  ) {
     return "snowflake";
   }
-  
+
   // Códigos nublados (2-3, 45-48)
-  if ((weatherCode >= 2 && weatherCode <= 3) || (weatherCode >= 45 && weatherCode <= 48)) {
+  if (
+    (weatherCode >= 2 && weatherCode <= 3) ||
+    (weatherCode >= 45 && weatherCode <= 48)
+  ) {
     return "cloud";
   }
-  
+
   // Despejado o mayormente despejado (0-1)
   return "sun";
 }
