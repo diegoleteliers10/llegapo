@@ -1,14 +1,14 @@
-import { chromium, Browser, BrowserContext, Page } from "playwright-chromium";
+import { chromium, Browser, BrowserContext, Page } from "playwright-core";
+import chromiumPath from "@sparticuz/chromium";
 
 // Environment-aware configuration
 const getConfig = () => ({
+  isProduction: process.env.NODE_ENV === "production",
   headless: process.env.PLAYWRIGHT_HEADLESS !== "false",
   timeout: parseInt(process.env.PLAYWRIGHT_TIMEOUT || "30000"),
   userAgent:
     process.env.PLAYWRIGHT_USER_AGENT ||
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  chromiumExecutablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-  isProduction: process.env.NODE_ENV === "production",
 });
 
 export interface PlaywrightSession {
@@ -28,7 +28,7 @@ export interface PlaywrightOptions {
 }
 
 /**
- * Creates a Playwright browser session optimized for serverless environments
+ * Creates a Playwright browser session optimized for Vercel serverless environments
  */
 export async function createPlaywrightSession(
   options: PlaywrightOptions = {},
@@ -40,37 +40,50 @@ export async function createPlaywrightSession(
     viewport = { width: 1280, height: 720 },
   } = options;
 
-  // Browser launch options optimized for serverless
-  const launchOptions: any = {
-    headless: config.headless,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--disable-gpu",
-      "--disable-background-timer-throttling",
-      "--disable-backgrounding-occluded-windows",
-      "--disable-renderer-backgrounding",
-      "--disable-features=TranslateUI",
-      "--disable-ipc-flooding-protection",
-      "--disable-web-security",
-      "--disable-extensions",
-      ...(config.isProduction ? ["--single-process"] : []), // Important for serverless
-    ],
-  };
-
-  // Add executable path if specified
-  if (config.chromiumExecutablePath) {
-    launchOptions.executablePath = config.chromiumExecutablePath;
-  }
-
   try {
     console.log(
       `Creating Playwright session - Production: ${config.isProduction}, Headless: ${config.headless}`,
     );
+
+    // Configure launch options for serverless environment
+    const launchOptions: any = {
+      headless: config.headless,
+    };
+
+    if (config.isProduction) {
+      // Production: Use @sparticuz/chromium for Vercel
+      launchOptions.executablePath = await chromiumPath.executablePath();
+      launchOptions.args = [
+        ...chromiumPath.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+        "--single-process",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-features=TranslateUI",
+        "--disable-ipc-flooding-protection",
+        "--disable-web-security",
+        "--disable-extensions",
+      ];
+    } else {
+      // Development: Use system Chromium
+      launchOptions.args = [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ];
+    }
+
     const browser = await chromium.launch(launchOptions);
 
     // Create context with user agent and viewport
@@ -110,10 +123,10 @@ export async function createPlaywrightSession(
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("Executable doesn't exist")) {
       console.error(
-        "Browser not found. In production, ensure browsers are installed or use a container with pre-installed browsers.",
+        "Browser not found. In production, ensure @sparticuz/chromium is properly installed.",
       );
       console.error(
-        "For Vercel: Consider using playwright-chromium or a custom Docker container.",
+        "For Vercel: playwright-core + @sparticuz/chromium should handle this automatically.",
       );
     }
 
