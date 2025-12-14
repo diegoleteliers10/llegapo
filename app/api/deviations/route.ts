@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { chromium } from "playwright";
+import {
+  createPlaywrightSession,
+  navigateToPage,
+  safeScrape,
+} from "@/lib/playwright-utils";
 
 export interface Deviation {
   date: string;
@@ -9,101 +13,83 @@ export interface Deviation {
 }
 
 export async function GET() {
-  let browser;
-  let context;
+  let session;
   try {
-    // Launch Playwright Chromium browser
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-      ],
+    // Create Playwright session optimized for serverless
+    session = await createPlaywrightSession({
+      timeout: 30000,
     });
 
-    // Create browser context with userAgent
-    context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    });
+    const deviations = await safeScrape(
+      session,
+      "https://www.red.cl/estado-del-servicio/desvios/",
+      async (page) => {
+        const results = await page.evaluate(() => {
+          const deviationResults: Array<{
+            date: string;
+            title: string;
+            link: string;
+          }> = [];
 
-    const page = await context.newPage();
+          // Buscar el contenedor div.row.noticias
+          const container = document.querySelector("div.row.noticias");
+          if (!container) {
+            // Si no encontramos el contenedor, buscar directamente los <a class="noticia">
+            const allLinks = document.querySelectorAll("a.noticia");
+            allLinks.forEach((linkElement) => {
+              const a = linkElement as HTMLAnchorElement;
+              const title = a.getAttribute("title") || "";
+              const href = a.getAttribute("href") || "";
 
-    await page.goto("https://www.red.cl/estado-del-servicio/desvios/", {
-      waitUntil: "networkidle",
-      timeout: 20000,
-    });
+              // Buscar la fecha en el span dentro del <a>
+              const span = a.querySelector("span");
+              const date = span ? span.textContent?.trim() || "" : "";
 
-    const deviations = await page.evaluate(() => {
-      const results: Array<{
-        date: string;
-        title: string;
-        link: string;
-      }> = [];
+              if (title && href && date) {
+                deviationResults.push({
+                  date,
+                  title: title.replace(/^Leer artículo:\s*/i, "").trim(),
+                  link: href.startsWith("http")
+                    ? href
+                    : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
+                });
+              }
+            });
+          } else {
+            // Buscar todos los <a class="noticia"> dentro del contenedor
+            const links = container.querySelectorAll("a.noticia");
 
-      // Buscar el contenedor div.row.noticias
-      const container = document.querySelector("div.row.noticias");
-      if (!container) {
-        // Si no encontramos el contenedor, buscar directamente los <a class="noticia">
-        const allLinks = document.querySelectorAll("a.noticia");
-        allLinks.forEach((linkElement) => {
-          const a = linkElement as HTMLAnchorElement;
-          const title = a.getAttribute("title") || "";
-          const href = a.getAttribute("href") || "";
+            links.forEach((linkElement) => {
+              const a = linkElement as HTMLAnchorElement;
+              const title = a.getAttribute("title") || "";
+              const href = a.getAttribute("href") || "";
 
-          // Buscar la fecha en el span dentro del <a>
-          const span = a.querySelector("span");
-          const date = span ? span.textContent?.trim() || "" : "";
+              // Buscar la fecha en el span dentro del <a>
+              const span = a.querySelector("span");
+              const date = span ? span.textContent?.trim() || "" : "";
 
-          if (title && href && date) {
-            results.push({
-              date,
-              title: title.replace(/^Leer artículo:\s*/i, "").trim(),
-              link: href.startsWith("http")
-                ? href
-                : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
+              if (title && href && date) {
+                deviationResults.push({
+                  date,
+                  title: title.replace(/^Leer artículo:\s*/i, "").trim(),
+                  link: href.startsWith("http")
+                    ? href
+                    : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
+                });
+              }
             });
           }
+
+          return deviationResults;
         });
-      } else {
-        // Buscar todos los <a class="noticia"> dentro del contenedor
-        const links = container.querySelectorAll("a.noticia");
 
-        links.forEach((linkElement) => {
-          const a = linkElement as HTMLAnchorElement;
-          const title = a.getAttribute("title") || "";
-          const href = a.getAttribute("href") || "";
+        return results;
+      },
+    );
 
-          // Buscar la fecha en el span dentro del <a>
-          const span = a.querySelector("span");
-          const date = span ? span.textContent?.trim() || "" : "";
-
-          if (title && href && date) {
-            results.push({
-              date,
-              title: title.replace(/^Leer artículo:\s*/i, "").trim(),
-              link: href.startsWith("http")
-                ? href
-                : `https://www.red.cl${href.startsWith("/") ? href : `/${href}`}`,
-            });
-          }
-        });
-      }
-
-      return results;
-    });
-
-    await context.close();
-    await browser.close();
     return NextResponse.json({ success: true, data: deviations });
   } catch (error) {
-    if (context) await context.close();
-    if (browser) await browser.close();
+    console.error("Deviations API error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -111,5 +97,10 @@ export async function GET() {
       },
       { status: 500 },
     );
+  } finally {
+    // Cleanup resources
+    if (session) {
+      await session.cleanup();
+    }
   }
 }
