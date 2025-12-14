@@ -1,6 +1,10 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright-core";
 import chromiumPath from "@sparticuz/chromium-min";
 
+// Remote Chromium executable for Vercel production
+const CHROMIUM_REMOTE_EXEC_PATH =
+  "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.tar.br";
+
 // Environment-aware configuration
 const getConfig = () => ({
   isProduction: process.env.NODE_ENV === "production",
@@ -9,6 +13,8 @@ const getConfig = () => ({
   userAgent:
     process.env.PLAYWRIGHT_USER_AGENT ||
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  remotePath:
+    process.env.CHROMIUM_REMOTE_EXEC_PATH || CHROMIUM_REMOTE_EXEC_PATH,
 });
 
 export interface PlaywrightSession {
@@ -51,8 +57,10 @@ export async function createPlaywrightSession(
     };
 
     if (config.isProduction) {
-      // Production: Use @sparticuz/chromium for Vercel
-      launchOptions.executablePath = await chromiumPath.executablePath();
+      // Production: Use remote Chromium executable for Vercel
+      launchOptions.executablePath = await chromiumPath.executablePath(
+        config.remotePath,
+      );
       launchOptions.args = [
         ...chromiumPath.args,
         "--no-sandbox",
@@ -123,10 +131,11 @@ export async function createPlaywrightSession(
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("Executable doesn't exist")) {
       console.error(
-        "Browser not found. In production, ensure @sparticuz/chromium is properly installed.",
+        "Browser not found. Using remote Chromium executable:",
+        config.remotePath,
       );
       console.error(
-        "For Vercel: playwright-core + @sparticuz/chromium should handle this automatically.",
+        "For Vercel: Remote executable should resolve binary path issues.",
       );
     }
 
