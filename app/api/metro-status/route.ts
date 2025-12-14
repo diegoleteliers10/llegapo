@@ -15,6 +15,15 @@ export async function GET() {
   let browser;
   try {
     // Inicializar Puppeteer con configuración optimizada para Vercel
+    const viewport = {
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      height: 1080,
+      isLandscape: true,
+      isMobile: false,
+      width: 1920,
+    };
+
     browser = await puppeteer.launch({
       args:
         process.env.NODE_ENV === "production"
@@ -28,13 +37,12 @@ export async function GET() {
               "--no-zygote",
               "--disable-gpu",
             ],
-      defaultViewport: chromium.defaultViewport,
+      defaultViewport: viewport,
       executablePath:
         process.env.NODE_ENV === "production"
           ? await chromium.executablePath()
           : undefined,
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
+      headless: process.env.NODE_ENV === "production" ? "shell" : true,
     });
 
     const page = await browser.newPage();
