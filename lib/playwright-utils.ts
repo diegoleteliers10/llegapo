@@ -48,8 +48,9 @@ export async function createPlaywrightSession(
 
   try {
     console.log(
-      `Creating Playwright session - Production: ${config.isProduction}, Headless: ${config.headless}`,
+      `🚀 Creating Playwright session - Production: ${config.isProduction}, Headless: ${config.headless}`,
     );
+    console.log(`🔧 Remote Path: ${config.remotePath}`);
 
     // Configure launch options for serverless environment
     const launchOptions: any = {
@@ -58,9 +59,10 @@ export async function createPlaywrightSession(
 
     if (config.isProduction) {
       // Production: Use remote Chromium executable for Vercel
-      launchOptions.executablePath = await chromiumPath.executablePath(
-        config.remotePath,
-      );
+      console.log(`📥 Downloading remote Chromium from: ${config.remotePath}`);
+      const execPath = await chromiumPath.executablePath(config.remotePath);
+      console.log(`✅ Chromium executable path: ${execPath}`);
+      launchOptions.executablePath = execPath;
       launchOptions.args = [
         ...chromiumPath.args,
         "--no-sandbox",
@@ -81,6 +83,7 @@ export async function createPlaywrightSession(
       ];
     } else {
       // Development: Use system Chromium
+      console.log(`💻 Development mode - using system Chromium`);
       launchOptions.args = [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -92,29 +95,38 @@ export async function createPlaywrightSession(
       ];
     }
 
+    console.log(`🎛️ Launch options:`, JSON.stringify(launchOptions, null, 2));
+
+    console.log(`🌐 Launching browser...`);
     const browser = await chromium.launch(launchOptions);
+    console.log(`✅ Browser launched successfully`);
 
     // Create context with user agent and viewport
+    console.log(`🎭 Creating browser context with User-Agent: ${userAgent}`);
     const context = await browser.newContext({
       userAgent,
       viewport,
       ignoreHTTPSErrors: true,
     });
+    console.log(`✅ Browser context created`);
 
-    // Create page
+    console.log(`📄 Creating new page...`);
     const page = await context.newPage();
+    console.log(`✅ Page created successfully`);
 
     // Set default timeout
     page.setDefaultTimeout(timeout);
+    console.log(`⏱️ Default timeout set to: ${timeout}ms`);
 
     // Cleanup function
     const cleanup = async () => {
       try {
+        console.log("🧹 Starting browser cleanup...");
         await context?.close();
         await browser?.close();
-        console.log("Playwright session cleaned up successfully");
+        console.log("✅ Browser session cleaned up successfully");
       } catch (error) {
-        console.error("Error during cleanup:", error);
+        console.error("❌ Error during cleanup:", error);
       }
     };
 
@@ -125,18 +137,27 @@ export async function createPlaywrightSession(
       cleanup,
     };
   } catch (error) {
-    console.error("Failed to create Playwright session:", error);
+    console.error("❌ Failed to create Playwright session:", error);
 
-    // Provide helpful error messages for common deployment issues
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`🔍 Error details: ${errorMessage}`);
+
     if (errorMessage.includes("Executable doesn't exist")) {
       console.error(
-        "Browser not found. Using remote Chromium executable:",
+        "🚫 Browser not found. Using remote Chromium executable:",
         config.remotePath,
       );
       console.error(
-        "For Vercel: Remote executable should resolve binary path issues.",
+        "💡 For Vercel: Remote executable should resolve binary path issues.",
       );
+    }
+
+    if (errorMessage.includes("Could not find browser")) {
+      console.error("🔍 Browser search paths issue detected");
+    }
+
+    if (errorMessage.includes("ENOENT")) {
+      console.error("📁 File/directory not found error");
     }
 
     throw error;
@@ -159,18 +180,23 @@ export async function navigateToPage(
 
   let lastError: Error | null = null;
 
+  console.log(`🌐 Navigating to: ${url}`);
   for (let i = 0; i <= retries; i++) {
     try {
+      console.log(`📡 Navigation attempt ${i + 1}/${retries + 1} to ${url}`);
       await page.goto(url, {
         waitUntil: "networkidle",
         timeout,
       });
+      console.log(`✅ Successfully navigated to ${url}`);
       return; // Success!
     } catch (error) {
       lastError = error as Error;
-      console.warn(`Navigation attempt ${i + 1} failed:`, error);
+      console.warn(`⚠️ Navigation attempt ${i + 1} failed:`, error);
+      console.warn(`🔍 Error details: ${(error as Error).message}`);
 
       if (i < retries) {
+        console.log(`⏳ Waiting 1s before retry...`);
         // Wait before retry
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
@@ -224,12 +250,22 @@ export async function safeScrape<T>(
   scrapeFunction: (page: Page) => Promise<T>,
 ): Promise<T> {
   try {
+    console.log(`🕸️ Starting scraping for: ${url}`);
     await navigateToPage(session.page, url);
-    return await scrapeFunction(session.page);
+
+    console.log(`📊 Running scrape function...`);
+    const result = await scrapeFunction(session.page);
+    console.log(`✅ Scraping completed successfully for ${url}`);
+
+    return result;
   } catch (error) {
-    console.error(`Scraping failed for ${url}:`, error);
+    console.error(`❌ Scraping failed for ${url}:`, error);
+    console.error(
+      `🔍 Error details: ${error instanceof Error ? error.message : String(error)}`,
+    );
     throw error;
   } finally {
     // Cleanup is handled by the caller
+    console.log(`🧹 Scraping cleanup for ${url}`);
   }
 }
