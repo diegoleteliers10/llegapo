@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import puppeteerDev from "puppeteer";
 import chromium from "@sparticuz/chromium";
 
 export interface MetroLineStatus {
@@ -24,26 +25,31 @@ export async function GET() {
       width: 1920,
     };
 
-    browser = await puppeteer.launch({
-      args:
-        process.env.NODE_ENV === "production"
-          ? chromium.args
-          : [
-              "--no-sandbox",
-              "--disable-setuid-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-accelerated-2d-canvas",
-              "--no-first-run",
-              "--no-zygote",
-              "--disable-gpu",
-            ],
-      defaultViewport: viewport,
-      executablePath:
-        process.env.NODE_ENV === "production"
-          ? await chromium.executablePath()
-          : undefined,
-      headless: process.env.NODE_ENV === "production" ? "shell" : true,
-    });
+    // Use different puppeteer configurations for development vs production
+    if (process.env.NODE_ENV === "production") {
+      // Production: Use puppeteer-core with @sparticuz/chromium for serverless
+      browser = await puppeteer.launch({
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        defaultViewport: viewport,
+        executablePath: await chromium.executablePath(),
+        headless: "shell",
+      });
+    } else {
+      // Development: Use regular puppeteer with local Chrome
+      browser = await puppeteerDev.launch({
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
+          "--disable-gpu",
+        ],
+        defaultViewport: viewport,
+        headless: true,
+      });
+    }
 
     const page = await browser.newPage();
 

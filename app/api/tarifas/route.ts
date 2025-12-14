@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import puppeteerDev from "puppeteer";
+import chromium from "@sparticuz/chromium";
 
 export interface TarifaCombinacion {
   descripcion: string;
@@ -7,7 +9,13 @@ export interface TarifaCombinacion {
 }
 
 export interface Tarifa {
-  tipo: "baja" | "valle" | "punta" | "estudiante" | "adulto-mayor" | "adulto-mayor-metro";
+  tipo:
+    | "baja"
+    | "valle"
+    | "punta"
+    | "estudiante"
+    | "adulto-mayor"
+    | "adulto-mayor-metro";
   nombre: string;
   descripcion: string;
   horarios: {
@@ -33,71 +41,115 @@ export interface Tarifa {
 export async function GET() {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
   try {
-    // Inicializar Puppeteer
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-gpu",
-      ],
-    });
+    // Configuración del viewport optimizada para Vercel
+    const viewport = {
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      height: 1080,
+      isLandscape: true,
+      isMobile: false,
+      width: 1920,
+    };
+
+    // Use different puppeteer configurations for development vs production
+    if (process.env.NODE_ENV === "production") {
+      // Production: Use puppeteer-core with @sparticuz/chromium for serverless
+      browser = await puppeteer.launch({
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        defaultViewport: viewport,
+        executablePath: await chromium.executablePath(),
+        headless: "shell",
+      });
+    } else {
+      // Development: Use regular puppeteer with local Chrome
+      browser = await puppeteerDev.launch({
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
+          "--disable-gpu",
+        ],
+        defaultViewport: viewport,
+        headless: true,
+      });
+    }
 
     const page = await browser.newPage();
-    
+
     // Configurar User-Agent
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     );
 
-    // Navegar a la página
-    await page.goto("https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/", {
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
+    // Navegar a la página con timeout reducido para Vercel
+    await page.goto(
+      "https://www.red.cl/tarifas-y-recargas/conoce-las-tarifas/",
+      {
+        waitUntil: "domcontentloaded",
+        timeout: 25000, // Reducido para evitar timeout de Vercel (30s max)
+      },
+    );
 
-    // Esperar a que las tablas se carguen
-    await page.waitForSelector('table.table, h2.titular', { timeout: 15000 }).catch(() => {
-      // Continuar aunque no encuentre los selectores
-    });
-    
-    // Esperar un poco más para que el contenido dinámico se cargue
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Esperar a que las tablas se carguen con timeout reducido
+    await page
+      .waitForSelector("table.table, h2.titular", { timeout: 8000 })
+      .catch(() => {
+        // Continuar aunque no encuentre los selectores
+      });
+
+    // Reducir tiempo de espera para Vercel
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Extraer las tarifas
     const tarifas = await page.evaluate(() => {
       const results: Tarifa[] = [];
 
       // Buscar todas las secciones con h2.titular
-      const titulares = document.querySelectorAll('h2.titular');
-      
+      const titulares = document.querySelectorAll("h2.titular");
+
       titulares.forEach((titular) => {
         const nombreSeccion = titular.textContent?.trim() || "";
-        
+
         // Determinar el tipo de tarifa
-        let tipo: "baja" | "valle" | "punta" | "estudiante" | "adulto-mayor" | "adulto-mayor-metro" | null = null;
+        let tipo:
+          | "baja"
+          | "valle"
+          | "punta"
+          | "estudiante"
+          | "adulto-mayor"
+          | "adulto-mayor-metro"
+          | null = null;
         if (nombreSeccion.includes("Baja")) tipo = "baja";
         else if (nombreSeccion.includes("Valle")) tipo = "valle";
         else if (nombreSeccion.includes("Punta")) tipo = "punta";
         else if (nombreSeccion.includes("Estudiantes")) tipo = "estudiante";
-        else if (nombreSeccion.includes("Adulto Mayor") && nombreSeccion.includes("Metro")) tipo = "adulto-mayor-metro";
+        else if (
+          nombreSeccion.includes("Adulto Mayor") &&
+          nombreSeccion.includes("Metro")
+        )
+          tipo = "adulto-mayor-metro";
         else if (nombreSeccion.includes("Adulto Mayor")) tipo = "adulto-mayor";
-        
+
         if (!tipo) return;
 
         // Buscar la tabla siguiente
         let elementoActual: Element | null = titular.nextElementSibling;
         let tabla: HTMLTableElement | null = null;
-        
+
         while (elementoActual) {
-          if (elementoActual.tagName === "TABLE" || elementoActual.querySelector("table.table")) {
-            tabla = elementoActual.tagName === "TABLE" 
-              ? elementoActual as HTMLTableElement 
-              : elementoActual.querySelector("table.table") as HTMLTableElement;
+          if (
+            elementoActual.tagName === "TABLE" ||
+            elementoActual.querySelector("table.table")
+          ) {
+            tabla =
+              elementoActual.tagName === "TABLE"
+                ? (elementoActual as HTMLTableElement)
+                : (elementoActual.querySelector(
+                    "table.table",
+                  ) as HTMLTableElement);
             break;
           }
           elementoActual = elementoActual.nextElementSibling;
@@ -108,12 +160,20 @@ export async function GET() {
         // Extraer descripción y horarios del texto antes de la tabla
         let descripcion = "";
         let horariosTexto = "";
-        let elementoTexto: Element | null = titular.nextElementSibling as Element | null;
-        
+        let elementoTexto: Element | null =
+          titular.nextElementSibling as Element | null;
+
         while (elementoTexto && elementoTexto !== tabla.parentElement) {
-          if (elementoTexto.tagName === "P" || elementoTexto.tagName === "DIV") {
+          if (
+            elementoTexto.tagName === "P" ||
+            elementoTexto.tagName === "DIV"
+          ) {
             const texto = elementoTexto.textContent?.trim() || "";
-            if (texto && !texto.includes("Combinación") && !texto.includes("Precio")) {
+            if (
+              texto &&
+              !texto.includes("Combinación") &&
+              !texto.includes("Precio")
+            ) {
               if (texto.includes("Iniciando") || texto.includes("Horario")) {
                 horariosTexto = texto;
               } else if (descripcion === "") {
@@ -127,20 +187,20 @@ export async function GET() {
         // Extraer combinaciones de la tabla
         const combinaciones: TarifaCombinacion[] = [];
         const tbody = tabla.querySelector("tbody");
-        
+
         if (tbody) {
           const filas = tbody.querySelectorAll("tr");
-          
+
           filas.forEach((fila) => {
             const celdas = fila.querySelectorAll("td");
             if (celdas.length >= 2) {
               const combinacionTexto = celdas[0].textContent?.trim() || "";
               const precioTexto = celdas[1].textContent?.trim() || "";
-              
+
               // Extraer precio numérico
               const precioMatch = precioTexto.match(/\$?(\d+)/);
               const precio = precioMatch ? parseInt(precioMatch[1]) : 0;
-              
+
               if (combinacionTexto && precio > 0) {
                 combinaciones.push({
                   descripcion: combinacionTexto,
@@ -152,7 +212,12 @@ export async function GET() {
         }
 
         // Extraer precios base del texto de descripción
-        const precios: { metro?: number; bus?: number; metrotren?: number; total: number } = {
+        const precios: {
+          metro?: number;
+          bus?: number;
+          metrotren?: number;
+          total: number;
+        } = {
           total: 0,
         };
 
@@ -160,14 +225,15 @@ export async function GET() {
         const precioMetroMatch = descripcion.match(/Metro.*?\$(\d+)/i);
         const precioBusMatch = descripcion.match(/bus.*?\$(\d+)/i);
         const precioMetrotrenMatch = descripcion.match(/Tren.*?\$(\d+)/i);
-        
+
         if (precioMetroMatch) precios.metro = parseInt(precioMetroMatch[1]);
         if (precioBusMatch) precios.bus = parseInt(precioBusMatch[1]);
-        if (precioMetrotrenMatch) precios.metrotren = parseInt(precioMetrotrenMatch[1]);
-        
+        if (precioMetrotrenMatch)
+          precios.metrotren = parseInt(precioMetrotrenMatch[1]);
+
         // El precio total es el máximo de las combinaciones o el precio base
         if (combinaciones.length > 0) {
-          precios.total = Math.max(...combinaciones.map(c => c.precio));
+          precios.total = Math.max(...combinaciones.map((c) => c.precio));
         }
 
         // Extraer horarios
@@ -177,7 +243,9 @@ export async function GET() {
         };
 
         // Parsear horarios del texto
-        const horarioMatches = horariosTexto.matchAll(/(\d{2}):(\d{2})\s*[-–]\s*(\d{2}):(\d{2})/g);
+        const horarioMatches = horariosTexto.matchAll(
+          /(\d{2}):(\d{2})\s*[-–]\s*(\d{2}):(\d{2})/g,
+        );
         for (const match of horarioMatches) {
           horarios.rangos.push({
             inicio: `${match[1]}:${match[2]}`,
@@ -215,7 +283,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error al obtener tarifas:", error);
-    
+
     if (browser) {
       await browser.close().catch(() => {});
     }
@@ -234,7 +302,7 @@ export async function GET() {
           },
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
