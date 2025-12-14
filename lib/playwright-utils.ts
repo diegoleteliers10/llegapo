@@ -3,7 +3,7 @@ import chromiumPath from "@sparticuz/chromium-min";
 
 // Remote Chromium executable for Vercel production
 const CHROMIUM_REMOTE_EXEC_PATH =
-  "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.tar.br";
+  "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.x64.tar";
 
 // Environment-aware configuration
 const getConfig = () => ({
