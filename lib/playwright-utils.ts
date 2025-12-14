@@ -107,7 +107,8 @@ export async function createPlaywrightSession(
     console.error("Failed to create Playwright session:", error);
 
     // Provide helpful error messages for common deployment issues
-    if (error.message?.includes("Executable doesn't exist")) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("Executable doesn't exist")) {
       console.error(
         "Browser not found. In production, ensure browsers are installed or use a container with pre-installed browsers.",
       );
