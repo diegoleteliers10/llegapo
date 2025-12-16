@@ -23,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={`${spaceGrotesk.variable} antialiased`}>
+        <Analytics/>
         <Providers>{children}</Providers>
       </body>
     </html>
